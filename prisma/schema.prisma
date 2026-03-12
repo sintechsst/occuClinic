@@ -8,92 +8,183 @@ datasource db {
 }
 
 model Tenant {
-  id          String   @id @default(cuid())
-  name        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  users       User[]
-  companies   Company[]
-  exams       Exam[]
-  doctors     Doctor[]
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  companies Company[]
+  examTypes ExamType[]
+  doctors   Doctor[]
 }
 
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
-  role      String   @default("reception") // admin, doctor, reception
+  role      String   @default("reception")
+
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Company {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
   cnpj      String?
+
   tenantId  String
-  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
   employees Employee[]
-  appointments Appointment[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  pcmso     Pcmso?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Employee {
-  id           String        @id @default(cuid())
-  name         String
-  cpf          String?
-  companyId    String
-  company      Company       @relation(fields: [companyId], references: [id])
+  id        String   @id @default(cuid())
+  name      String
+  cpf       String?
+  position  String?
+
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+
   appointments Appointment[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  exams        EmployeeExam[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model Exam {
-  id           String        @id @default(cuid())
-  name         String
-  description  String?
-  price        Float?
-  tenantId     String
-  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+model ExamType {
+  id             String   @id @default(cuid())
+  name           String
+  category       String
+  validityMonths Int?
+  price          Float?
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
   appointments Appointment[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  exams        EmployeeExam[]
 }
 
 model Doctor {
-  id           String        @id @default(cuid())
-  name         String
-  crm          String?
-  specialty    String?
-  tenantId     String
-  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  id        String   @id @default(cuid())
+  name      String
+  crm       String?
+  specialty String?
+
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
   appointments Appointment[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  exams        EmployeeExam[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model Appointment {
-  id          String   @id @default(cuid())
-  date        DateTime
-  status      String   @default("scheduled") // scheduled, completed, missed
-  notes       String?
-  
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id])
-  
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
-  
-  examId      String
-  exam        Exam     @relation(fields: [examId], references: [id])
-  
-  doctorId    String
-  doctor      Doctor   @relation(fields: [doctorId], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+mmodel Appointment {
+  id      String   @id @default(cuid())
+  date    DateTime
+  status  String   @default("scheduled")
+  notes   String?
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+
+  examTypeId String
+  examType   ExamType @relation(fields: [examTypeId], references: [id])
+
+  doctorId   String
+  doctor     Doctor   @relation(fields: [doctorId], references: [id])
+
+  exam EmployeeExam?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmployeeExam {
+  id String @id @default(cuid())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  examTypeId String
+  examType   ExamType @relation(fields: [examTypeId], references: [id])
+
+  doctorId String?
+  doctor   Doctor? @relation(fields: [doctorId], references: [id])
+
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+
+  examDate   DateTime
+  validUntil DateTime?
+
+  result ExamResult?
+
+  documents ExamDocument[]
+
+  createdAt DateTime @default(now())
+}
+
+model ExamResult {
+  id String @id @default(cuid())
+
+  examId String @unique
+  exam   EmployeeExam @relation(fields: [examId], references: [id])
+
+  fitness      String
+  restrictions String?
+
+  createdAt DateTime @default(now())
+}
+
+model ExamDocument {
+  id String @id @default(cuid())
+
+  examId String
+  exam   EmployeeExam @relation(fields: [examId], references: [id])
+
+  type String
+  url  String
+}
+
+model Pcmso {
+  id String @id @default(cuid())
+
+  companyId String @unique
+  company   Company @relation(fields: [companyId], references: [id])
+
+  year Int
+
+  doctorName String?
+
+  createdAt DateTime @default(now())
+}
+
+model EsocialEvent {
+  id String @id @default(cuid())
+
+  employeeId String
+  examId     String?
+
+  eventType String
+  status    String
+
+  sentAt DateTime?
 }
