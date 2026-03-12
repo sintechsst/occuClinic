@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+  companies   Company[]
+  exams       Exam[]
+  doctors     Doctor[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("reception") // admin, doctor, reception
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Company {
+  id        String     @id @default(cuid())
+  name      String
+  cnpj      String?
+  tenantId  String
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  employees Employee[]
+  appointments Appointment[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Employee {
+  id           String        @id @default(cuid())
+  name         String
+  cpf          String?
+  companyId    String
+  company      Company       @relation(fields: [companyId], references: [id])
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Exam {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  price        Float?
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Doctor {
+  id           String        @id @default(cuid())
+  name         String
+  crm          String?
+  specialty    String?
+  tenantId     String
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Appointment {
+  id          String   @id @default(cuid())
+  date        DateTime
+  status      String   @default("scheduled") // scheduled, completed, missed
+  notes       String?
+  
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  
+  examId      String
+  exam        Exam     @relation(fields: [examId], references: [id])
+  
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

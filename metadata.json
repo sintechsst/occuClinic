@@ -1,0 +1,5 @@
+{
+  "name": "OccuClinic SaaS",
+  "description": "Multi-tenant occupational medicine clinic management system with appointment scheduling, employee history, and clinic metrics.",
+  "requestFramePermissions": []
+}
