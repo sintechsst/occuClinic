@@ -3,16 +3,15 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Tenant {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   users     User[]
   companies Company[]
   examTypes ExamType[]
@@ -23,38 +22,37 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
-  role      String   @default("reception")
-
+  role      String   @default("reception") // admin, doctor, reception
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  cnpj      String?
+  id       String  @id @default(cuid())
+  name     String
+  cnpj     String?
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
 
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  employees    Employee[]
+  appointments Appointment[]
+  pcmso        Pcmso?
 
-  employees Employee[]
-  pcmso     Pcmso?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  JobRisk   JobRisk[]
 }
 
 model Employee {
-  id        String   @id @default(cuid())
-  name      String
-  cpf       String?
-  position  String?
+  id       String  @id @default(cuid())
+  name     String
+  cpf      String?
+  position String?
 
   companyId String
-  company   Company  @relation(fields: [companyId], references: [id])
+  company   Company @relation(fields: [companyId], references: [id])
 
   appointments Appointment[]
   exams        EmployeeExam[]
@@ -64,27 +62,29 @@ model Employee {
 }
 
 model ExamType {
-  id             String   @id @default(cuid())
-  name           String
-  category       String
-  validityMonths Int?
-  price          Float?
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  price       Float?
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  appointments Appointment[]
-  exams        EmployeeExam[]
+  appointments  Appointment[]
+  employeeExams EmployeeExam[]
+
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  RiskExamRequirement RiskExamRequirement[]
 }
 
 model Doctor {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   name      String
   crm       String?
   specialty String?
-
   tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
 
   appointments Appointment[]
   exams        EmployeeExam[]
@@ -93,25 +93,23 @@ model Doctor {
   updatedAt DateTime @updatedAt
 }
 
-mmodel Appointment {
-  id      String   @id @default(cuid())
-  date    DateTime
-  status  String   @default("scheduled")
-  notes   String?
+model Appointment {
+  id     String   @id @default(cuid())
+  date   DateTime
+  status String   @default("scheduled")
+  notes  String?
 
   employeeId String
   employee   Employee @relation(fields: [employeeId], references: [id])
 
-  companyId  String
-  company    Company  @relation(fields: [companyId], references: [id])
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
 
   examTypeId String
   examType   ExamType @relation(fields: [examTypeId], references: [id])
 
-  doctorId   String
-  doctor     Doctor   @relation(fields: [doctorId], references: [id])
-
-  exam EmployeeExam?
+  doctorId String
+  doctor   Doctor @relation(fields: [doctorId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -129,15 +127,10 @@ model EmployeeExam {
   doctorId String?
   doctor   Doctor? @relation(fields: [doctorId], references: [id])
 
-  appointmentId String?
-  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
-
   examDate   DateTime
   validUntil DateTime?
 
   result ExamResult?
-
-  documents ExamDocument[]
 
   createdAt DateTime @default(now())
 }
@@ -145,7 +138,7 @@ model EmployeeExam {
 model ExamResult {
   id String @id @default(cuid())
 
-  examId String @unique
+  examId String       @unique
   exam   EmployeeExam @relation(fields: [examId], references: [id])
 
   fitness      String
@@ -154,37 +147,47 @@ model ExamResult {
   createdAt DateTime @default(now())
 }
 
-model ExamDocument {
-  id String @id @default(cuid())
-
-  examId String
-  exam   EmployeeExam @relation(fields: [examId], references: [id])
-
-  type String
-  url  String
-}
-
 model Pcmso {
-  id String @id @default(cuid())
-
-  companyId String @unique
+  id        String  @id @default(cuid())
+  companyId String  @unique
   company   Company @relation(fields: [companyId], references: [id])
 
   year Int
 
-  doctorName String?
+  responsibleDoctor String?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model EsocialEvent {
+model RiskFactor {
+  id   String @id @default(cuid())
+  name String
+
+  jobRisks            JobRisk[]
+  RiskExamRequirement RiskExamRequirement[]
+}
+
+model JobRisk {
   id String @id @default(cuid())
 
-  employeeId String
-  examId     String?
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
 
-  eventType String
-  status    String
+  position String
 
-  sentAt DateTime?
+  riskId String
+  risk   RiskFactor @relation(fields: [riskId], references: [id])
+}
+
+model RiskExamRequirement {
+  id String @id @default(cuid())
+
+  riskId String
+  risk   RiskFactor @relation(fields: [riskId], references: [id])
+
+  examTypeId String
+  examType   ExamType @relation(fields: [examTypeId], references: [id])
+
+  periodicityMonths Int
 }
